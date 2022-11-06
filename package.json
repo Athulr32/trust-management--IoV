@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "elliptic": "^6.5.4",
+    "ethers": "^5.7.2",
+    "js-sha3": "^0.8.0",
+    "keccak256": "^1.0.6",
+    "secp256k1": "^4.0.3"
+  },
+  "name": "wsn",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
