@@ -1,11 +1,15 @@
 {
   "dependencies": {
+    "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "elliptic": "^6.5.4",
+    "ethereumjs-tx": "^2.1.2",
     "ethers": "^5.7.2",
+    "express": "^4.18.2",
     "js-sha3": "^0.8.0",
     "keccak256": "^1.0.6",
-    "secp256k1": "^4.0.3"
+    "secp256k1": "^4.0.3",
+    "web3": "^1.8.0"
   },
   "name": "wsn",
   "version": "1.0.0",

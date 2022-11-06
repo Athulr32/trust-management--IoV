@@ -4,9 +4,10 @@ const secp256k1 = require('secp256k1')
 const { ethers } = require("ethers");
 const keccak256 = require('js-sha3').keccak256;
 const EC = require('elliptic').ec;
-
 var ec = new EC('secp256k1');
-const provider = new ethers.providers.JsonRpcProvider("https://api.avax-test.network/ext/bc/C/rpc");
+
+
+
 
 
 //For vehicle
@@ -70,34 +71,4 @@ console.log(msgAuthenticity)
 
 
 
-//For RSU
-let privKeyRsu="2670dcc196727cd22823dc575e7c50e3a6e48b80b1b5a2e213242a2c3ab628b8";
-const privKeyRsuByte = fromHexString(privKeyRsu)
-
-// get the public key in a compressed format
-const publicKeyRsu = secp256k1.publicKeyCreate(privKey);
-let publicKeyRsuHex = "03d47b61fcc919803a211309b1c2aa50e68afae3753a35e511f95b328b5ba344e0";
-
-//Converting public key to address
-// Import public key
-var key = ec.keyFromPrivate(privKeyRsu, 'hex');
-
-// Convert to uncompressed format
-const publicKeyUncompressedRsu = key.getPublic().encode('hex').slice(2);
-
-// Now apply keccak
-const addressRsu = keccak256(Buffer.from(publicKeyUncompressedRsu, 'hex')).slice(64 - 40);
-
-console.log('Address',addressRsu)
-
-
-
-const wallet = new ethers.Wallet(privKeyRsuByte,provider)
-
-async function test(){
-
-    console.log(await wallet.getBalance())
-}
-
-test()
 
