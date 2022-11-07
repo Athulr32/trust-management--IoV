@@ -118,7 +118,7 @@ function callFunctionInContract(contractFunction) {
 //Routes For connecting to Vehicle
 
 app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ extended: false }))
 app.use(cors())
 
 app.use("/register", (req, res) => {
@@ -126,12 +126,24 @@ app.use("/register", (req, res) => {
     //Will send the entire thing to ALL other RSU
     //TO confirm the transaction in the blockchain SO a particular RSU got hacked cannot manipulate the blockchain
     const msg = req.body.msg;
-    const signObj = req.body.msg;
+    const signObj = req.body.signObj
     const pubKey = req.body.pubKey;
+    const address = req.body.address;
 
-    
+    const signObjT = Object.values(signObj.signature);
+    const realSignObj = Uint8Array.from(signObjT)
+
+    const msgArr = Object.values(msg)
+    const realMsg = Buffer.from(msgArr)
+
+    const pubKeyT = Object.values(pubKey)
+    const realPubKey = Uint8Array.from(pubKeyT)
+
+
+
     //Verify if the sender message;
-    const msgAuthenticity = secp256k1.ecdsaVerify(signObj.signature, msg, pubKey);
+    const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+
     if (!msgAuthenticity) {
         res.status(400).json({
             msg: "Invalid msg"
@@ -163,20 +175,20 @@ app.use("/register", (req, res) => {
 
 app.use("/verifyVehicle", async (req, res) => {
 
-    const pubKey = req.body.pubkey;
+    const address = req.body.address;
     const verifyVehicleFunction = contract.methods.verifyVehicle("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67");
     const isVehicleVerified = await verifyVehicleFunction.call()
 
-    if (isVehicleVerified){
+    if (isVehicleVerified) {
         const getLocationFunction = contract.methods.getTrustValueAndLocation("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67")
         const trustAndLocation = await getLocationFunction.call()
         res.json({
-            msg:trustAndLocation
+            msg: trustAndLocation
         })
     }
-    else{
+    else {
         res.json({
-            msg:"Vehicle Not registered"
+            msg: false
         })
     }
 
@@ -185,39 +197,66 @@ app.use("/verifyVehicle", async (req, res) => {
 })
 
 
-app.use("/updateTrustValue",(req,res)=>{
+app.use("/updateTrustValue", (req, res) => {
 
     //Whole details will be sent to Another RSU also
     //Information send by other vehicle
-    const msg=req.body.msg;
-    //Check if timestamp is correct
-    const signObj = req.body.msg;
-    const pubKeyofVeh = req.body.pubKeyVeh
+    const msg = req.body.msg;
+    const signObj = req.body.signObj
+    const pubKey = req.body.pubKey;
+    const trustValue = req.body.trust
+
+    console.log(req.body)
+    const signObjT = Object.values(signObj.signature);
+    const realSignObj = Uint8Array.from(signObjT)
+
+    const msgArr = Object.values(msg)
+    const realMsg = Buffer.from(msgArr)
+
+    const pubKeyT = Object.values(pubKey)
+    const realPubKey = Uint8Array.from(pubKeyT)
+
+    // Convert to uncompressed format
+    const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
+
+    // Now apply keccak
+    const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
 
 
-    const trustValue = req.body.trust;
-    const pubKey = req.body.pubkey;
- 
+    //Verify if the sender message;
+    const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
 
-    if(trustValue === 0){
-        const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67",-20)
-        callFunctionInContract(getLocationFunction)
+    if (msgAuthenticity) {
+        if (trustValue === false) {
+            const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67", -20)
+            callFunctionInContract(getLocationFunction)
+            res.json({
+                msg: "Updated",
+
+            })
+        }
+        else {
+            const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67", 20)
+            callFunctionInContract(getLocationFunction)
+            res.json({
+                msg: "Updated",
+
+            })
+        }
+    }
+    else {
         res.json({
-            msg:"Updated",
-
+            msg: "ERROR"
         })
     }
 
-    const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67",20)
-    res.json({
-        msg:"Updated",
 
-    })
+
 
 })
 
 
-app.use("/inforeq",async (req,res)=>{
+app.use("/inforeq", async (req, res) => {
 
     const location = req.body.location;
     //RSU will route to another RSU based on location
@@ -234,7 +273,7 @@ app.use("/", (req, res) => {
     res.json({ data: "test" })
 })
 
-app.listen(30010)
+app.listen(3012)
 console.log("Started")
 
 

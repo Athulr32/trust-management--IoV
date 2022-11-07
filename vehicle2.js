@@ -5,7 +5,7 @@ const { ethers } = require("ethers");
 const keccak256 = require('js-sha3').keccak256;
 const EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
-
+const cors = require('cors')
 const express = require("express")
 const app = express()
 const readline = require("readline");
@@ -40,6 +40,9 @@ const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 
 console.log('Address', address)
 
 
+app.use(express.json())
+app.use(express.urlencoded({ extended: false }))
+app.use(cors())
 
 //Request from vehicle about a particular event
 //And RSU will also send this and a nearby vehicle also
@@ -64,32 +67,73 @@ app.use("/incomingRequest", (req, res) => {
 
 })
 
-app.use("/sendMessage",async (req,res) => {
+app.use("/sendMessage", async (req, res) => {
+ 
 
     const msg = req.body.msg;
-    const signObj = req.body.msg;
+    const signObj = req.body.signObj
     const pubKey = req.body.pubKey;
-    const address ="";
-    //Check authenticity of the message
-    const msgAuthenticity = secp256k1.ecdsaVerify(signObj.signature, msg, pubKey)
 
-    if(msgAuthenticity){
+    const signObjT = Object.values(signObj.signature);
+    const realSignObj = Uint8Array.from(signObjT)
 
-        const locOfcurretnVeh="";
-        
+    const msgArr = Object.values(msg)
+    const realMsg = Buffer.from(msgArr)
+
+    const pubKeyT = Object.values(pubKey)
+    const realPubKey = Uint8Array.from(pubKeyT)
+
+    // Convert to uncompressed format
+    const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
+
+    // Now apply keccak
+    const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
+
+
+    //Verify if the sender message;
+    const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+
+
+    if (msgAuthenticity) {
+
+        const locOfcurretnVeh = "";
+
         //Verify the vehicle and get the location of trust value
-        const res = await fetch("localhost:3000/verifyVehicle",{
-            body:JSON.stringify({pubKey})
+        const resp = await fetch("http://localhost:3012/verifyVehicle", {
+            method:'POST',
+            body: JSON.stringify({ address }),
+            headers: { 'Content-Type': 'application/json' },
         })
-
+        const rsuRes = await resp.json();
         //Compare the location and decide whether to accept the msg based on trust value
-
+        console.log(rsuRes)
+        const trustValue = rsuRes.msg['0'];
+        console.log("Trust Value is",trustValue);
+        //Now update trust Value
+  
+        const trustRes = await fetch("http://localhost:3012/updateTrustValue",{
+            method:'POST',
+            body:JSON.stringify({
+                trust:true,
+                msg:msg,
+                signObj:signObj,
+                pubKey:pubKey
+            }),
+            headers: { 'Content-Type': 'application/json' },
+        })
+        console.log(await trustRes.json())
         //If information is correct update the trust value
-        res.status(200).send("success")
-
+        res.json({
+            msg:"success"
+        })
+        
+    }
+    else{
+        res.json({
+            msg:"success"
+        })
     }
 
-    res.status(200).send("success")
 
 
 })
@@ -97,12 +141,35 @@ app.use("/sendMessage",async (req,res) => {
 app.listen(5001);
 
 
+
 function input() {
-    rl.question("Enter 1 to Send Message to Nearby vehicle About an event\nEnter 2 to send a request to vehicle\n ", async function (res) {
+    rl.question("Enter 1 to Send Message to Nearby vehicle About an event\nEnter 2 to send a request to vehicle for info\n ", async function (res) {
         if (res === "1") {
             //Send message to nearby vehicle about any event that happened
             //Send the event,pubkey,and signed Message
-            const resp = await (await fetch("localhost:5001/sendMessage").json())
+            let arr = new Uint8Array(32);
+            const msg = Date.now().toString();
+
+            arr = arr.map((v, i) => {
+                return msg[i]
+            })
+            //Sign the Message
+            const signObj = secp256k1.ecdsaSign(arr, privKey)
+
+            const data = {
+                msg: arr,
+                signObj: signObj,
+                pubKey: pubKey
+            }
+    
+            const resp = await fetch("http://localhost:4005/sendMessage",{
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'application/json' },
+            })
+            
+            console.log(await resp.json())
+            input()
         } else {
             rl.question("Press 1 if Want information from nearby location\nPress 2 if want information from far location", async (res) => {
                 if (res == "1") {
@@ -142,6 +209,45 @@ function input() {
 input()
 
 
+async function registering() {
+
+    //Message to send
+    let arr = new Uint8Array(32);
+    const msg = Date.now().toString();
+
+    arr = arr.map((v, i) => {
+        return msg[i]
+    })
+    //Sign the Message
+    const signObj = secp256k1.ecdsaSign(arr, privKey)
+    
+    const data = {
+        msg: arr,
+        signObj: signObj,
+        pubKey: pubKey,
+        address:address
+    }
 
 
+
+    const verres = await fetch("http://localhost:3012/register", {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+
+    })
+    const reg = await verres.json()
+    if (reg.msg === "registered") {
+        console.log("Vehicle has been registered")
+    }
+    else {
+        console.log("vehicle not regsitered")
+    }
+
+
+}
+
+registering().then(()=>{
+    input()
+})
 

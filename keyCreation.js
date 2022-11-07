@@ -42,12 +42,17 @@ console.log("Address",address)
 
 
 //Message to send
-const msg = crypto.randomBytes(32)
+let arr = new Uint8Array(32);
+const msg = Date.now().toString();
 
+arr = arr.map((v,i)=>{
+  return msg[i]
+})
+console.log(arr)
 //Sign the Message
-const sigObj = secp256k1.ecdsaSign(msg, privKey)
-
+const sigObj = secp256k1.ecdsaSign(arr, privKey)
+console.log(sigObj)
 //verify the message using  senders public key
-const msgAuthenticity = secp256k1.ecdsaVerify(sigObj.signature, msg, pubKey)
+const msgAuthenticity = secp256k1.ecdsaVerify(sigObj.signature, arr, pubKey)
 
 console.log(msgAuthenticity)
