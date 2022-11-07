@@ -6,15 +6,20 @@ const keccak256 = require('js-sha3').keccak256;
 const EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
 const cors = require('cors')
+require('dotenv').config();
 const express = require("express")
 const app = express()
+
 const readline = require("readline");
+const { rand } = require("elliptic");
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-
+const RSU_PORT = process.env.RSU_PORT
+const VEHICLE1_PORT = process.env.VEHICLE1_PORT
+const VEHICLE2_PORT = process.env.VEHICLE2_PORT
 
 
 //For vehicle
@@ -45,22 +50,6 @@ console.log('Address', address)
 
 
 
-//Message to send
-const msg = crypto.randomBytes(32)
-
-//Sign the Message
-const sigObj = secp256k1.ecdsaSign(msg, privKey)
-
-//verify the message using  senders public key
-const msgAuthenticity = secp256k1.ecdsaVerify(sigObj.signature, msg, pubKey)
-
-// console.log(msgAuthenticity)
-
-// (async () => {
-//     console.log(await provider.getBlockNumber())
-// }
-// )()
-
 
 //Request from vehicle about a particular event
 //And RSU will also send this and a nearby vehicle also
@@ -68,6 +57,7 @@ const msgAuthenticity = secp256k1.ecdsaVerify(sigObj.signature, msg, pubKey)
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cors())
+
 app.use("/incomingRequest", (req, res) => {
 
 
@@ -91,7 +81,8 @@ app.use("/incomingRequest", (req, res) => {
 
 
 app.use("/sendMessage", async (req, res) => {
- 
+    
+    console.log('Recieved a Message\n');
 
     const msg = req.body.msg;
     const signObj = req.body.signObj
@@ -106,8 +97,11 @@ app.use("/sendMessage", async (req, res) => {
     const pubKeyT = Object.values(pubKey)
     const realPubKey = Uint8Array.from(pubKeyT)
 
+    var key = ec.keyFromPublic(realPubKey);
+
     // Convert to uncompressed format
     const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
+
 
     // Now apply keccak
     const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
@@ -116,9 +110,10 @@ app.use("/sendMessage", async (req, res) => {
     //Verify if the sender message;
     const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
 
-
+    console.log('Checking Message Authenticity...')
     if (msgAuthenticity) {
-
+        console.log("Verified!!")
+        //Location of current vehicle
         const locOfcurretnVeh = "";
 
         //Verify the vehicle and get the location of trust value
@@ -183,13 +178,16 @@ function input() {
                 signObj: signObj,
                 pubKey: pubKey
             }
-    
+            
+            console.log('Sending message....\n')
+
             const resp = await fetch("http://localhost:5001/sendMessage",{
                 method: 'POST',
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' },
             })
-            console.log(await resp.json())
+            const vehres = await resp.json();
+            console.log(vehres.msg)
             input()
 
         } else {
@@ -199,7 +197,7 @@ function input() {
                     //Send request to nearby Vehicle
                     rl.question("What information you want", async (info) => {
 
-                        const resp = await (await fetch("localhost:5001/incomginRequest").json())
+                        const resp = await (await fetch("localhost:5001/incomingRequest").json())
 
                         //After getting info check if the message is valid using signature
                         //If yes get the trust value of that vehicle
@@ -233,21 +231,22 @@ async function registering() {
 
     //Message to send
 
-
     let arr = new Uint8Array(32);
-    const msg = Date.now().toString();
+    const msgT = Date.now().toString();
 
     arr = arr.map((v, i) => {
-        return msg[i]
+        return msgT[i]
     })
     //Sign the Message
     const signObj = secp256k1.ecdsaSign(arr, privKey)
-
+    const randNum = (Math.random() * 100).toString();
     const data = {
+        time:msgT,
         msg: arr,
         signObj: signObj,
         pubKey: pubKey,
-        address:address
+        address:address,
+        location:randNum
     }
 
 

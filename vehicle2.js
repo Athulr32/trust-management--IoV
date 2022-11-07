@@ -68,7 +68,8 @@ app.use("/incomingRequest", (req, res) => {
 })
 
 app.use("/sendMessage", async (req, res) => {
- 
+
+    console.log('Recieved a Message');
 
     const msg = req.body.msg;
     const signObj = req.body.signObj
@@ -83,24 +84,28 @@ app.use("/sendMessage", async (req, res) => {
     const pubKeyT = Object.values(pubKey)
     const realPubKey = Uint8Array.from(pubKeyT)
 
+    var key = ec.keyFromPublic(realPubKey);
+
     // Convert to uncompressed format
     const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
 
     // Now apply keccak
     const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
 
-
+    console.log('Checking Message Authenticity...')
     //Verify if the sender message;
     const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
 
 
+
     if (msgAuthenticity) {
 
+        console.log("Verified!!")
         const locOfcurretnVeh = "";
 
         //Verify the vehicle and get the location of trust value
         const resp = await fetch("http://localhost:3012/verifyVehicle", {
-            method:'POST',
+            method: 'POST',
             body: JSON.stringify({ address }),
             headers: { 'Content-Type': 'application/json' },
         })
@@ -108,29 +113,45 @@ app.use("/sendMessage", async (req, res) => {
         //Compare the location and decide whether to accept the msg based on trust value
         console.log(rsuRes)
         const trustValue = rsuRes.msg['0'];
-        console.log("Trust Value is",trustValue);
+        console.log("Trust Value is", trustValue);
+        let flag = true
+
+        // if (Number(trustValue) > 40) {
+        //     console.log("HI")
+        //     rl.question("DO you want to accept?Yes/No", (ans) => {
+        //         ans == "Yes" ? flag = true : flag = false;
+        //     })
+        // }
         //Now update trust Value
-  
-        const trustRes = await fetch("http://localhost:3012/updateTrustValue",{
-            method:'POST',
-            body:JSON.stringify({
-                trust:true,
-                msg:msg,
-                signObj:signObj,
-                pubKey:pubKey
-            }),
-            headers: { 'Content-Type': 'application/json' },
-        })
-        console.log(await trustRes.json())
-        //If information is correct update the trust value
-        res.json({
-            msg:"success"
-        })
-        
+        if (flag == true) {
+            console.log("Checking info is correct");
+            console.log("Updating Trust value")
+            const trustRes = await fetch("http://localhost:3012/updateTrustValue", {
+                method: 'POST',
+                body: JSON.stringify({
+                    trust: true,
+                    msg: msg,
+                    signObj: signObj,
+                    pubKey: pubKey
+                }),
+                headers: { 'Content-Type': 'application/json' },
+            })
+            console.log(await trustRes.json())
+            //If information is correct update the trust value
+            res.json({
+                msg: "success"
+            })
+        }
+        else{
+            res.json({
+                msg:"Trust value low"
+            })
+        }
+
     }
-    else{
+    else {
         res.json({
-            msg:"success"
+            msg: "success"
         })
     }
 
@@ -161,14 +182,16 @@ function input() {
                 signObj: signObj,
                 pubKey: pubKey
             }
-    
-            const resp = await fetch("http://localhost:4005/sendMessage",{
+            console.log("Sending Message....")
+            const resp = await fetch("http://localhost:4005/sendMessage", {
                 method: 'POST',
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' },
             })
-            
-            console.log(await resp.json())
+
+            const vehres = await resp.json();
+            console.log(vehres.msg)
+
             input()
         } else {
             rl.question("Press 1 if Want information from nearby location\nPress 2 if want information from far location", async (res) => {
@@ -220,12 +243,13 @@ async function registering() {
     })
     //Sign the Message
     const signObj = secp256k1.ecdsaSign(arr, privKey)
-    
+    const randNum = (Math.random() * 100).toString();
     const data = {
         msg: arr,
         signObj: signObj,
         pubKey: pubKey,
-        address:address
+        address: address,
+        location: randNum
     }
 
 
@@ -247,7 +271,7 @@ async function registering() {
 
 }
 
-registering().then(()=>{
+registering().then(() => {
     input()
 })
 

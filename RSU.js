@@ -129,7 +129,7 @@ app.use("/register", (req, res) => {
     const signObj = req.body.signObj
     const pubKey = req.body.pubKey;
     const address = req.body.address;
-
+    const location = req.body.location
     const signObjT = Object.values(signObj.signature);
     const realSignObj = Uint8Array.from(signObjT)
 
@@ -140,32 +140,36 @@ app.use("/register", (req, res) => {
     const realPubKey = Uint8Array.from(pubKeyT)
 
 
-
+    console.log('Verifying Message authenticity')
     //Verify if the sender message;
     const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
-
+   
     if (!msgAuthenticity) {
         res.status(400).json({
             msg: "Invalid msg"
         })
     }
+    else {
+        //Check if location is valid
+        //If yes add the public key and the location in smart contract
+        console.log(Math.floor(location))
+        const contractFunction = contract.methods.authVehicle(address, location);
 
-    //Check if location is valid
-    //If yes add the public key and the location in smart contract
-    const contractFunction = contract.methods.authVehicle("0x373f85D1943d9b5D135Ca05164BD09d93e3720A8", "wefe");
+        try {
+            callFunctionInContract(contractFunction);
+            console.log("Added to blockchain")
+            res.status(200).json({
+                msg: "registered",
+                pubkey: pubKey
+            })
 
-    try {
-        callFunctionInContract(contractFunction);
+        } catch (error) {
+            res.status(400).json({
+                msg: "Invalid msg"
+            })
+        }
 
-        res.status(200).json({
-            msg: "registered",
-            pubkey: pubKey
-        })
 
-    } catch (error) {
-        res.status(400).json({
-            msg: "Invalid msg"
-        })
     }
 
 
@@ -176,11 +180,11 @@ app.use("/register", (req, res) => {
 app.use("/verifyVehicle", async (req, res) => {
 
     const address = req.body.address;
-    const verifyVehicleFunction = contract.methods.verifyVehicle("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67");
+    const verifyVehicleFunction = contract.methods.verifyVehicle(address);
     const isVehicleVerified = await verifyVehicleFunction.call()
 
     if (isVehicleVerified) {
-        const getLocationFunction = contract.methods.getTrustValueAndLocation("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67")
+        const getLocationFunction = contract.methods.getTrustValueAndLocation(address)
         const trustAndLocation = await getLocationFunction.call()
         res.json({
             msg: trustAndLocation
@@ -206,7 +210,7 @@ app.use("/updateTrustValue", (req, res) => {
     const pubKey = req.body.pubKey;
     const trustValue = req.body.trust
 
-    console.log(req.body)
+
     const signObjT = Object.values(signObj.signature);
     const realSignObj = Uint8Array.from(signObjT)
 
@@ -216,6 +220,7 @@ app.use("/updateTrustValue", (req, res) => {
     const pubKeyT = Object.values(pubKey)
     const realPubKey = Uint8Array.from(pubKeyT)
 
+    var key = ec.keyFromPublic(realPubKey);
     // Convert to uncompressed format
     const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
 
@@ -228,7 +233,8 @@ app.use("/updateTrustValue", (req, res) => {
 
     if (msgAuthenticity) {
         if (trustValue === false) {
-            const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67", -20)
+       
+            const getLocationFunction = contract.methods.updateTrustValue(address, -20)
             callFunctionInContract(getLocationFunction)
             res.json({
                 msg: "Updated",
@@ -236,7 +242,8 @@ app.use("/updateTrustValue", (req, res) => {
             })
         }
         else {
-            const getLocationFunction = contract.methods.updateTrustValue("0xB9220905FCD0FB72762AeE085785e36Be4cb4e67", 20)
+            console.log(address)
+            const getLocationFunction = contract.methods.updateTrustValue(address, 20)
             callFunctionInContract(getLocationFunction)
             res.json({
                 msg: "Updated",
