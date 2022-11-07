@@ -40,6 +40,7 @@ contract WSN{
     function removeVehicle(address addr) public{
 
         delete authVeh[addr];
+        check[addr]=0;
 
     }
 
