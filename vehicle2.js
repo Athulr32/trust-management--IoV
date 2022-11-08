@@ -221,7 +221,8 @@ function input() {
             console.log(vehres.msg)
 
             input()
-        } else if(res==="2") {
+        }
+         else if(res==="2") {
             //Send request to nearby Vehicle
             rl.question("What information you want", async (info) => {
 
@@ -316,6 +317,42 @@ function input() {
             })
 
         }
+        else{
+
+
+            rl.question("What information you want", async (info) => {
+
+                let arr = new Uint8Array(32);
+                const msg = Date.now().toString();
+
+                arr = arr.map((v, i) => {
+                    return msg[i]
+                })
+                //Sign the Message
+                const signObj = secp256k1.ecdsaSign(arr, privKey)
+
+                const data = {
+                    msg: arr,
+                    signObj: signObj,
+                    pubKey: pubKey
+                }
+
+                console.log('Sending Request to RSU....\n')
+
+                const resp = await fetch("http://localhost:3012/incomingRequest", {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+
+                //After getting info check if the message is valid using signature
+                //If yes get the trust value of that vehicle
+                //And accept message according to trust value
+                //And update the trust value
+
+            })
+        }
+        
     });
 }
 
