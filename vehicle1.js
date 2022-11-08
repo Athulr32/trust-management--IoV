@@ -336,77 +336,14 @@ function input() {
                     pubKey: pubKey
                 }
 
-                console.log('Sending Request....\n')
+                console.log('Sending Request to RSU....\n')
 
-                const resp = await fetch("http://localhost:5001/incomingRequest", {
+                const resp = await fetch("http://localhost:3012/incomingRequest", {
                     method: 'POST',
                     body: JSON.stringify(data),
                     headers: { 'Content-Type': 'application/json' },
                 })
 
-               const respRec = await resp.json()
-               const msgRec = respRec.msg;
-               const signObjRec = respRec.signObj
-               const pubKeyRec = respRec.pubKey;
-                const msgObject = respRec.msgObj
-               const signObjT = Object.values(signObjRec.signature);
-               const realSignObj = Uint8Array.from(signObjT)
-              
-               const msgArr = Object.values(msgObject)
-               const realMsg = Buffer.from(msgArr)
-           
-               const pubKeyT = Object.values(pubKeyRec)
-               const realPubKey = Uint8Array.from(pubKeyT)
-           
-               var key = ec.keyFromPublic(realPubKey);
-           
-               // Convert to uncompressed format
-               const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
-           
-           
-               // Now apply keccak
-               const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
-           
-           
-               //Verify if the sender message;
-               const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
-
-               if (msgAuthenticity) {
-                console.log("Verified!!")
-                //Location of current vehicle
-                const locOfcurretnVeh = "";
-                console.log("The recieved message is",msgRec)
-                //Verify the vehicle and get the location of trust value
-                const resp = await fetch("http://localhost:3012/verifyVehicle", {
-                    method: 'POST',
-                    body: JSON.stringify({ address }),
-                    headers: { 'Content-Type': 'application/json' },
-                })
-                const rsuRes = await resp.json();
-                //Compare the location and decide whether to accept the msg based on trust value
-                console.log(rsuRes)
-                const trustValue = rsuRes.msg['0'];
-                console.log("Trust Value is", trustValue);
-                //Now update trust Value
-        
-                const trustRes = await fetch("http://localhost:3012/updateTrustValue", {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        trust: true,
-                        msg: msgObject,
-                        signObj: signObjRec,
-                        pubKey: pubKeyRec
-                    }),
-                    headers: { 'Content-Type': 'application/json' },
-                })
-                console.log(await trustRes.json())
-                //If information is correct update the trust value
-                input()
-        
-            }
-            else{
-                console.log("Invalid message")
-            }
                 //After getting info check if the message is valid using signature
                 //If yes get the trust value of that vehicle
                 //And accept message according to trust value

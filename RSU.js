@@ -201,7 +201,7 @@ app.use("/verifyVehicle", async (req, res) => {
 })
 
 
-app.use("/updateTrustValue", (req, res) => {
+app.use("/updateTrustValue",async (req, res) => {
 
     //Whole details will be sent to Another RSU also
     //Information send by other vehicle
@@ -230,8 +230,10 @@ app.use("/updateTrustValue", (req, res) => {
 
     //Verify if the sender message;
     const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+    const verifyVehicleFunction = contract.methods.verifyVehicle(address);
+    const isVehicleVerified = await verifyVehicleFunction.call()
 
-    if (msgAuthenticity) {
+    if (msgAuthenticity && isVehicleVerified) {
         if (trustValue === false) {
        
             const getLocationFunction = contract.methods.updateTrustValue(address, -20)
@@ -263,15 +265,34 @@ app.use("/updateTrustValue", (req, res) => {
 })
 
 
-app.use("/incomingRequest", async (req, res) => {
+app.use("/incomingRequest", (req, res) => {
+    console.log('Recieved a Request\n');
+    console.log("Observing the event")
+    const msg = req.body.msg;
+    const signObj = req.body.signObj
+    const pubKeyA = req.body.pubKey;
 
-    const location = req.body.location;
-    //RSU will route to another RSU based on location
-    //At last it will reach an RSU in that current location
-    //That RSU will send the request to vehicle in that location
+    const signObjT = Object.values(signObj.signature);
+    const realSignObj = Uint8Array.from(signObjT)
 
-    const rrsp = await fetch("localhost:4001/incomingRequest")
+    const msgArr = Object.values(msg)
+    const realMsg = Buffer.from(msgArr)
 
+    const pubKeyT = Object.values(pubKeyA)
+    const realPubKey = Uint8Array.from(pubKeyT)
+
+
+
+    //Verify if the sender message;
+    const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+
+    if (msgAuthenticity) {
+
+        //Will send the request to another RSU
+        res.json({data:"HI"})
+
+
+    }
 
 })
 
