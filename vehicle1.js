@@ -59,19 +59,46 @@ app.use(express.urlencoded({ extended: false }))
 app.use(cors())
 
 app.use("/incomingRequest", (req, res) => {
-
-
+    console.log('Recieved a Request\n');
+    console.log("Observing the event")
     const msg = req.body.msg;
-    const signObj = req.body.sigObj;
-    const pubKey = req.body.sigObj;
-    //Verify signature
-    const msgAuthenticity = secp256k1.ecdsaVerify(signObj.signature, msg, pubKey)
+    const signObj = req.body.signObj
+    const pubKeyA = req.body.pubKey;
+
+    const signObjT = Object.values(signObj.signature);
+    const realSignObj = Uint8Array.from(signObjT)
+
+    const msgArr = Object.values(msg)
+    const realMsg = Buffer.from(msgArr)
+
+    const pubKeyT = Object.values(pubKeyA)
+    const realPubKey = Uint8Array.from(pubKeyT)
+
+
+
+    //Verify if the sender message;
+    const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
 
     if (msgAuthenticity) {
 
+        const msg = "Traffic block";
+
+        let arr = new Uint8Array(32);
+
+
+        arr = arr.map((v, i) => {
+            return msg[i]
+        })
+
+        //Sign the Message
+        const signObj = secp256k1.ecdsaSign(arr, privKey)
         //Read the msg and notice the event and send that event to vehicle
+        console.log("Sending the requested DATA")
         res.json({
-            data: "Traffic block"
+            msg,
+            msgObj:arr,
+            signObj,
+            pubKey
         })
 
 
@@ -81,7 +108,7 @@ app.use("/incomingRequest", (req, res) => {
 
 
 app.use("/sendMessage", async (req, res) => {
-    
+
     console.log('Recieved a Message\n');
 
     const msg = req.body.msg;
@@ -118,7 +145,7 @@ app.use("/sendMessage", async (req, res) => {
 
         //Verify the vehicle and get the location of trust value
         const resp = await fetch("http://localhost:3012/verifyVehicle", {
-            method:'POST',
+            method: 'POST',
             body: JSON.stringify({ address }),
             headers: { 'Content-Type': 'application/json' },
         })
@@ -126,29 +153,29 @@ app.use("/sendMessage", async (req, res) => {
         //Compare the location and decide whether to accept the msg based on trust value
         console.log(rsuRes)
         const trustValue = rsuRes.msg['0'];
-        console.log("Trust Value is",trustValue);
+        console.log("Trust Value is", trustValue);
         //Now update trust Value
-  
-        const trustRes = await fetch("http://localhost:3012/updateTrustValue",{
-            method:'POST',
-            body:JSON.stringify({
-                trust:true,
-                msg:msg,
-                signObj:signObj,
-                pubKey:pubKey
+
+        const trustRes = await fetch("http://localhost:3012/updateTrustValue", {
+            method: 'POST',
+            body: JSON.stringify({
+                trust: true,
+                msg: msg,
+                signObj: signObj,
+                pubKey: pubKey
             }),
             headers: { 'Content-Type': 'application/json' },
         })
         console.log(await trustRes.json())
         //If information is correct update the trust value
         res.json({
-            msg:"success"
+            msg: "success"
         })
 
     }
-    else{
+    else {
         res.json({
-            msg:"success"
+            msg: "success"
         })
     }
 
@@ -178,10 +205,10 @@ function input() {
                 signObj: signObj,
                 pubKey: pubKey
             }
-            
+
             console.log('Sending message....\n')
 
-            const resp = await fetch("http://localhost:5001/sendMessage",{
+            const resp = await fetch("http://localhost:5001/sendMessage", {
                 method: 'POST',
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' },
@@ -190,41 +217,212 @@ function input() {
             console.log(vehres.msg)
             input()
 
-        } else {
-            rl.question("Press 1 if Want information from nearby location\nPress 2 if want information from far location", async (res) => {
-                if (res == "1") {
+        } else if(res==="2") {
+            //Send request to nearby Vehicle
+            rl.question("What information you want", async (info) => {
 
-                    //Send request to nearby Vehicle
-                    rl.question("What information you want", async (info) => {
+                let arr = new Uint8Array(32);
+                const msg = Date.now().toString();
 
-                        const resp = await (await fetch("localhost:5001/incomingRequest").json())
+                arr = arr.map((v, i) => {
+                    return msg[i]
+                })
+                //Sign the Message
+                const signObj = secp256k1.ecdsaSign(arr, privKey)
 
-                        //After getting info check if the message is valid using signature
-                        //If yes get the trust value of that vehicle
-                        //And accept message according to trust value
-                        //And update the trust value
-
-                    })
-
-                }
-                else {
-                    //Send request to RSU
-                    rl.question("What information you want", async (info) => {
-
-                        const resp = await (await fetch("localhost:3001/infoReq").json())
-                        //RSU will respond with the event and the pubkey of the sender
-                        //Check the trust value and update
-
-                    })
+                const data = {
+                    msg: arr,
+                    signObj: signObj,
+                    pubKey: pubKey
                 }
 
+                console.log('Sending Request....\n')
+
+                const resp = await fetch("http://localhost:5001/incomingRequest", {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+
+               const respRec = await resp.json()
+               const msgRec = respRec.msg;
+               const signObjRec = respRec.signObj
+               const pubKeyRec = respRec.pubKey;
+                const msgObject = respRec.msgObj
+               const signObjT = Object.values(signObjRec.signature);
+               const realSignObj = Uint8Array.from(signObjT)
+              
+               const msgArr = Object.values(msgObject)
+               const realMsg = Buffer.from(msgArr)
+           
+               const pubKeyT = Object.values(pubKeyRec)
+               const realPubKey = Uint8Array.from(pubKeyT)
+           
+               var key = ec.keyFromPublic(realPubKey);
+           
+               // Convert to uncompressed format
+               const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
+           
+           
+               // Now apply keccak
+               const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
+           
+           
+               //Verify if the sender message;
+               const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+
+               if (msgAuthenticity) {
+                console.log("Verified!!")
+                //Location of current vehicle
+                const locOfcurretnVeh = "";
+                console.log("The recieved message is",msgRec)
+                //Verify the vehicle and get the location of trust value
+                const resp = await fetch("http://localhost:3012/verifyVehicle", {
+                    method: 'POST',
+                    body: JSON.stringify({ address }),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+                const rsuRes = await resp.json();
+                //Compare the location and decide whether to accept the msg based on trust value
+                console.log(rsuRes)
+                const trustValue = rsuRes.msg['0'];
+                console.log("Trust Value is", trustValue);
+                //Now update trust Value
+        
+                const trustRes = await fetch("http://localhost:3012/updateTrustValue", {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        trust: true,
+                        msg: msgObject,
+                        signObj: signObjRec,
+                        pubKey: pubKeyRec
+                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+                console.log(await trustRes.json())
+                //If information is correct update the trust value
+                input()
+        
+            }
+            else{
+                console.log("Invalid message")
+            }
+                //After getting info check if the message is valid using signature
+                //If yes get the trust value of that vehicle
+                //And accept message according to trust value
+                //And update the trust value
 
             })
 
 
         }
+        else{
+
+
+            rl.question("What information you want", async (info) => {
+
+                let arr = new Uint8Array(32);
+                const msg = Date.now().toString();
+
+                arr = arr.map((v, i) => {
+                    return msg[i]
+                })
+                //Sign the Message
+                const signObj = secp256k1.ecdsaSign(arr, privKey)
+
+                const data = {
+                    msg: arr,
+                    signObj: signObj,
+                    pubKey: pubKey
+                }
+
+                console.log('Sending Request....\n')
+
+                const resp = await fetch("http://localhost:5001/incomingRequest", {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+
+               const respRec = await resp.json()
+               const msgRec = respRec.msg;
+               const signObjRec = respRec.signObj
+               const pubKeyRec = respRec.pubKey;
+                const msgObject = respRec.msgObj
+               const signObjT = Object.values(signObjRec.signature);
+               const realSignObj = Uint8Array.from(signObjT)
+              
+               const msgArr = Object.values(msgObject)
+               const realMsg = Buffer.from(msgArr)
+           
+               const pubKeyT = Object.values(pubKeyRec)
+               const realPubKey = Uint8Array.from(pubKeyT)
+           
+               var key = ec.keyFromPublic(realPubKey);
+           
+               // Convert to uncompressed format
+               const publicKeyUncompressed = key.getPublic().encode('hex').slice(2);
+           
+           
+               // Now apply keccak
+               const address = keccak256(Buffer.from(publicKeyUncompressed, 'hex')).slice(64 - 40);
+           
+           
+               //Verify if the sender message;
+               const msgAuthenticity = secp256k1.ecdsaVerify(realSignObj, realMsg, realPubKey)
+
+               if (msgAuthenticity) {
+                console.log("Verified!!")
+                //Location of current vehicle
+                const locOfcurretnVeh = "";
+                console.log("The recieved message is",msgRec)
+                //Verify the vehicle and get the location of trust value
+                const resp = await fetch("http://localhost:3012/verifyVehicle", {
+                    method: 'POST',
+                    body: JSON.stringify({ address }),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+                const rsuRes = await resp.json();
+                //Compare the location and decide whether to accept the msg based on trust value
+                console.log(rsuRes)
+                const trustValue = rsuRes.msg['0'];
+                console.log("Trust Value is", trustValue);
+                //Now update trust Value
+        
+                const trustRes = await fetch("http://localhost:3012/updateTrustValue", {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        trust: true,
+                        msg: msgObject,
+                        signObj: signObjRec,
+                        pubKey: pubKeyRec
+                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                })
+                console.log(await trustRes.json())
+                //If information is correct update the trust value
+                input()
+        
+            }
+            else{
+                console.log("Invalid message")
+            }
+                //After getting info check if the message is valid using signature
+                //If yes get the trust value of that vehicle
+                //And accept message according to trust value
+                //And update the trust value
+
+            })
+
+
+
+
+
+        }
     });
 }
+
+
 
 
 async function registering() {
@@ -241,12 +439,12 @@ async function registering() {
     const signObj = secp256k1.ecdsaSign(arr, privKey)
     const randNum = (Math.random() * 100).toString();
     const data = {
-        time:msgT,
+        time: msgT,
         msg: arr,
         signObj: signObj,
         pubKey: pubKey,
-        address:address,
-        location:randNum
+        address: address,
+        location: randNum
     }
 
 
@@ -267,7 +465,7 @@ async function registering() {
 
 }
 
-registering().then(()=>{
+registering().then(() => {
     input()
 })
 

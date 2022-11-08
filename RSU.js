@@ -67,7 +67,7 @@ function callFunctionInContract(contractFunction) {
     contractFunction.estimateGas({ from: addressRsu }).then((gasAmount) => {
 
         gasAmount = gasAmount * 1000000
-        console.log("Estimated gas: " + gasAmount);
+      
         let estimatedGas = gasAmount.toString(16);
 
 
@@ -75,7 +75,7 @@ function callFunctionInContract(contractFunction) {
         web3.eth.getTransactionCount(addressRsu).then(_nonce => { //this will generate Nonce
             let nonce = _nonce.toString(16);
 
-            console.log("Nonce: " + nonce);
+     
 
             const txParams = {
                 gasPrice: "0x" + estimatedGas,
@@ -263,7 +263,7 @@ app.use("/updateTrustValue", (req, res) => {
 })
 
 
-app.use("/inforeq", async (req, res) => {
+app.use("/incomingRequest", async (req, res) => {
 
     const location = req.body.location;
     //RSU will route to another RSU based on location
