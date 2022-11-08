@@ -344,7 +344,7 @@ function input() {
                     body: JSON.stringify(data),
                     headers: { 'Content-Type': 'application/json' },
                 })
-
+                console.log(await resp.json())
                 //After getting info check if the message is valid using signature
                 //If yes get the trust value of that vehicle
                 //And accept message according to trust value

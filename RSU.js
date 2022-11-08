@@ -268,6 +268,7 @@ app.use("/updateTrustValue",async (req, res) => {
 app.use("/incomingRequest", (req, res) => {
     console.log('Recieved a Request\n');
     console.log("Observing the event")
+    const location = req.body.location;
     const msg = req.body.msg;
     const signObj = req.body.signObj
     const pubKeyA = req.body.pubKey;
@@ -288,8 +289,8 @@ app.use("/incomingRequest", (req, res) => {
 
     if (msgAuthenticity) {
 
-        //Will send the request to another RSU
-        res.json({data:"HI"})
+        //Will send the request to another RSU and the location
+        res.json({data:"Dance Party Happening"})
 
 
     }
