@@ -20,7 +20,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon"
   },
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "author": "Athul",
+  "license": "MIT",
+  "description": "A prototype for managing trust in Internet of Vehicles (IoV) using blockchain and smart contracts."
 }
