@@ -19,6 +19,8 @@ A JavaScript-based prototype for **managing trust in the Internet of Vehicles (I
 - Smart contract deployed on AVAX C-Chain or similar EVM-compatible chain
 
 ## 🚀 Getting Started
+> ⚠️ **Note:** This project is a **3-year-old prototype** and was built for experimentation. The code is not production-ready and may contain inefficiencies or outdated practices.
+
 
 ### 1. Install dependencies
 
